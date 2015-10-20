@@ -1,0 +1,14 @@
+<div ng-controller="RegisterController">
+    <form name="registerForm" class="form" ng-model="registerForm" ng-submit="submit()">
+        <div class="form-group">
+            <label for="register-email">Email address</label>
+            <input ng-model="registerEmail" name="email" class="form-control" id="register-email" placeholder="Email" ng-click="registerEmail" required>
+        </div>
+        <div class="form-group">
+            <input type="submit" value="Submit" class="btn btn-primary btn-lg">
+        </div>
+    </form>
+    <pre>email = {{registerForm.email.$viewValue}}</pre>
+    <pre>{{result}}</pre>
+</div>
+
