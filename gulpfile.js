@@ -9,10 +9,11 @@ var minifyCSS = require('gulp-minify-css');
 var clean = require('gulp-clean');
 var concat = require('gulp-concat');
 var watch = require('gulp-watch');
+var sass = require('gulp-sass');
 
 // tasks
 gulp.task('lint', function() {
-    gulp.src(['./app/**/*.js', '!./app/bower_components/**'])
+    gulp.src(['./app/**/*.js', '!./app/bower_components/**', '!./app/js/game/*.*'])
         .pipe(jshint())
         .pipe(jshint.reporter('default'))
         .pipe(jshint.reporter('fail'));
@@ -21,20 +22,31 @@ gulp.task('clean', function() {
     gulp.src('./dist/*')
         .pipe(clean({force: true}));
 });
-gulp.task('minify-css', function() {
+gulp.task('css', function() {
     var opts = {comments:true,spare:true};
-    gulp.src(['./app/**/*.css', '!./app/bower_components/**'])
-        .pipe(minifyCSS(opts))
-        .pipe(gulp.dest('./dist/'))
+    return gulp.src('./app/css/main.scss')
+        .pipe(sass({
+            includePaths: ['./bower_components/bootstrap-sass/assets/stylesheets']
+        }))
+        .pipe(gulp.dest('./dist/css'));
+        //.pipe(minifyCSS(opts))
 });
 gulp.task('minify-js', function() {
-    gulp.src(['./app/**/*.js', '!./app/bower_components/**'])
-        .pipe(uglify({
+    gulp.src(['./app/main.js', './app/**/*.js', '!./app/bower_components/**', '!./app/js/game/*.*'])
+        /*.pipe(uglify({
             // inSourceMap:
             // outSourceMap: "app.js.map"
-        }))
+        }))*/
         .pipe(concat('main.js'))
         .pipe(gulp.dest('./dist/js/'))
+});
+gulp.task('copy-js-game', function() {
+    gulp.src(['./app/js/game/*.js'])
+        /*.pipe(uglify({
+            // inSourceMap:
+            // outSourceMap: "app.js.map"
+        }))*/
+        .pipe(gulp.dest('./dist/js/game/'))
 });
 gulp.task('copy-bower-components', function () {
     gulp.src('./app/bower_components/**')
@@ -51,21 +63,27 @@ gulp.task('connect', function () {
     });
 });
 gulp.task('connectDist', function () {
-    watch('./app/**/*.*',function() {
-        gulp.start('build');
+    watch('./app/**/*.*', function() {
+        gulp.start('deploy');
     });
-    connect.server({
-        root: 'dist/',
-        port: 9999
-    });
+});
+gulp.task('deploy', ['update'], function(){
+    gulp.src(['./dist/*.*', './dist/**/*.*'])
+        .pipe(gulp.dest('../unnamed_project/public'));
 });
 
 // default task
 gulp.task('default',
-    ['lint', 'connect']
+    ['deploy']
 );
+
+// build task
+gulp.task('update',
+    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files']
+);
+
 // build task
 gulp.task('build',
-    ['lint', 'minify-css', 'minify-js', 'copy-html-files', 'copy-bower-components']
+    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files', 'copy-bower-components']
 );
 
