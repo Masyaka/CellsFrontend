@@ -50,8 +50,10 @@
                         }
 
                         $scope.backgroundColor = {'background-color': colorString};
+                        $scope.hexColor = colorString;
                     } else {
                         $scope.backgroundColor = {'background-color': 'inherit'};
+                        $scope.hexColor = '';
                     }
                 },
 
@@ -66,7 +68,7 @@
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        data: { email: $scope.registerForm.email.$modelValue }
+                        data: { email: $scope.registerForm.email.$modelValue, color: $scope.hexColor }
                     };
                     $http(req).then(
                         function(e){
