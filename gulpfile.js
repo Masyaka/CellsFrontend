@@ -48,6 +48,14 @@ gulp.task('copy-js-game', function() {
         }))*/
         .pipe(gulp.dest('./dist/js/game/'))
 });
+gulp.task('fonts', function() {
+    gulp.src(['./app/bower_components/bootstrap-sass/assets/fonts/bootstrap/*.*'])
+        /*.pipe(uglify({
+         // inSourceMap:
+         // outSourceMap: "app.js.map"
+         }))*/
+        .pipe(gulp.dest('./dist/fonts/bootstrap'))
+});
 gulp.task('copy-bower-components', function () {
     gulp.src('./app/bower_components/**')
         .pipe(gulp.dest('dist/bower_components'));
@@ -84,6 +92,6 @@ gulp.task('update',
 
 // build task
 gulp.task('build',
-    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files', 'copy-bower-components']
+    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files', 'copy-bower-components', 'fonts' ]
 );
 
