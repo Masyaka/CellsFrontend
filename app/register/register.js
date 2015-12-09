@@ -37,8 +37,8 @@
             });
         }]);
 
-    angular.module('CellsWebClient').controller('RegisterController', ['$scope', '$http', '$location', 'UserService', function($scope, $http, $location, UserService) {
-
+    angular.module('CellsWebClient')
+        .controller('RegisterController', ['$scope', '$http', '$location', 'UserService', function($scope, $http, $location, UserService) {
             angular.extend($scope, {
 
                 updateColor: function(){
@@ -64,7 +64,7 @@
 
                     var req = {
                         method: 'POST',
-                        url: 'http://localhost:4567/register',
+                        url: 'http://' + window.location.hostname + ":" + gameConfig.port +'/register',
                         headers: {
                             'Content-Type': 'application/json'
                         },

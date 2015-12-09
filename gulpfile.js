@@ -13,7 +13,7 @@ var sass = require('gulp-sass');
 
 // tasks
 gulp.task('lint', function() {
-    gulp.src(['./app/**/*.js', '!./app/bower_components/**', '!./app/js/game/*.*'])
+    gulp.src(['./app/**/*.js', '!./app/bower_components/**', '!./app/js/vendor/*.*'])
         .pipe(jshint())
         .pipe(jshint.reporter('default'))
         .pipe(jshint.reporter('fail'));
@@ -29,24 +29,32 @@ gulp.task('css', function() {
             includePaths: ['./bower_components/bootstrap-sass/assets/stylesheets']
         }))
         .pipe(gulp.dest('./dist/css'));
-        //.pipe(minifyCSS(opts))
+    //.pipe(minifyCSS(opts))
 });
 gulp.task('minify-js', function() {
-    gulp.src(['./app/main.js', './app/**/*.js', '!./app/bower_components/**', '!./app/js/game/*.*'])
+    gulp.src(['./app/main.js', './app/**/*.js', '!./app/bower_components/**', '!./app/js/vendor/*.*'])
         /*.pipe(uglify({
-            // inSourceMap:
-            // outSourceMap: "app.js.map"
-        }))*/
+         // inSourceMap:
+         // outSourceMap: "app.js.map"
+         }))*/
         .pipe(concat('main.js'))
         .pipe(gulp.dest('./dist/js/'))
 });
-gulp.task('copy-js-game', function() {
-    gulp.src(['./app/js/game/*.js'])
+gulp.task('copy-vendor', function() {
+    gulp.src(['./app/js/vendor/*.*'])
         /*.pipe(uglify({
-            // inSourceMap:
-            // outSourceMap: "app.js.map"
-        }))*/
-        .pipe(gulp.dest('./dist/js/game/'))
+         // inSourceMap:
+         // outSourceMap: "app.js.map"
+         }))*/
+        .pipe(gulp.dest('./dist/js/vendor/'))
+});
+gulp.task('fonts', function() {
+    gulp.src(['./app/bower_components/bootstrap-sass/assets/fonts/bootstrap/*.*'])
+        /*.pipe(uglify({
+         // inSourceMap:
+         // outSourceMap: "app.js.map"
+         }))*/
+        .pipe(gulp.dest('./dist/fonts/bootstrap'))
 });
 gulp.task('copy-bower-components', function () {
     gulp.src('./app/bower_components/**')
@@ -79,11 +87,10 @@ gulp.task('default',
 
 // build task
 gulp.task('update',
-    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files']
+    ['lint', 'css', 'minify-js', 'copy-vendor', 'copy-html-files']
 );
 
 // build task
 gulp.task('build',
-    ['lint', 'css', 'minify-js', 'copy-js-game', 'copy-html-files', 'copy-bower-components']
+    ['lint', 'css', 'minify-js', 'copy-vendor', 'copy-html-files', 'copy-bower-components', 'fonts' ]
 );
-

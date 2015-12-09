@@ -1,6 +1,8 @@
-var CellsGame = function() {
-    var ActiveCellIndication = function (scope) {
-        this.bitMapData = scope.game.make.bitmapData(scope.spriteWidth * scope.canvasZoom, scope.spriteHeight * scope.canvasZoom);
+var CellsGame = function(config) {
+    var game = this;
+
+    var CellIndication = function (color) {
+        this.bitMapData = game.game.make.bitmapData(game.spriteWidth * game.canvasZoom, game.spriteHeight * game.canvasZoom);
 
         this.addToWorld = function (x, y) {
             this.bitMapData.addToWorld(x, y);
@@ -8,8 +10,24 @@ var CellsGame = function() {
 
         this.highLight = function (x, y) {
             this.bitMapData.clear();
-            this.bitMapData.rect(x * scope.canvasZoom + 1, y * scope.canvasZoom + 1, scope.canvasZoom, scope.canvasZoom, '#0f0');
-            this.bitMapData.clear(x * scope.canvasZoom + 2, y * scope.canvasZoom + 2, scope.canvasZoom - 2, scope.canvasZoom - 2, '#000');
+            this.bitMapData.rect(x * game.canvasZoom + 1, y * game.canvasZoom + 1, game.canvasZoom, game.canvasZoom, color);
+            this.bitMapData.clear(x * game.canvasZoom + 2, y * game.canvasZoom + 2, game.canvasZoom - 2, game.canvasZoom - 2, '#000');
+        };
+    };
+
+    var storage = {
+        cells : [],
+        fractions : [],
+        players : [],
+        updateCells : function(cells){
+            this.cells = cells;
+        },
+        updateFractions : function(fractions) {
+            this.fractions = fractions;
+        },
+
+        updatePlayers : function(players) {
+            this.players = players;
         }
     };
 
@@ -24,10 +42,8 @@ var CellsGame = function() {
 //  UI
     this.ui = null;
     this.coords = null;
-    this.widthText = null;
     this.widthUp = null;
     this.widthDown = null;
-    this.heightText = null;
     this.heightUp = null;
     this.heightDown = null;
     this.previewSizeUp = null;
@@ -67,40 +83,23 @@ var CellsGame = function() {
     this.data = 0;
 
     this.activeCellIndication = 0;
-
-    this.websocket = 0;
-
-    this.Cells = 0;
-    this.Fractions = 0;
-    this.Players = 0;
-    this.Fraction = 0;
+    this.messageDispatcherService = 0;
     this.Player = 0;
 
     this.create = function() {
-        /*
-         //   So we can right-click to erase
-         document.body.oncontextmenu = function () {
-         return false;
-         };*/
-        Phaser.Canvas.setUserSelect(game.canvas, 'none');
-        Phaser.Canvas.setTouchAction(game.canvas, 'none');
-
-        game.stage.backgroundColor = '#505050';
-
-        this.createUI();
-        this.createDrawingArea();
-        this.createPreview();
-        this.activeCellIndication = new ActiveCellIndication(this);
-        this.activeCellIndication.addToWorld(10, 10);
-        this.createEventListeners();
-
-        this.resetData();
-
-        //this.canvas.rect(10 * this.canvasZoom, 10 * this.canvasZoom, this.canvasZoom, this.canvasZoom, "#ffffff");
-
-        this.loadState();
-
-        this.startWebSocket();
+        Phaser.Canvas.setUserSelect(this.game.canvas, 'none');
+        Phaser.Canvas.setTouchAction(this.game.canvas, 'none');
+        game.createUI();
+        game.createDrawingArea();
+        game.createPreview();
+        game.activeCellIndication = new CellIndication('#0f0');
+        game.activeCellIndication.addToWorld(10, 10);
+        game.createEventListeners();
+        game.resetData();
+        game.doSendRequest('request_state', {});
+        game.$scope.$on('messageReceived', function (e, data) {
+            game.onMessage(data);
+        });
     };
 
     this.resetData = function() {
@@ -156,7 +155,7 @@ var CellsGame = function() {
 
     this.createUI = function() {
 
-        game.create.grid('uiGrid', 32 * 16, 32, 32, 32, 'rgba(255,255,255,0.5)');
+        this.game.create.grid('uiGrid', 32 * 16, 32, 32, 32, 'rgba(255,255,255,0.5)');
 
         var plus = [
             '2222222',
@@ -178,28 +177,28 @@ var CellsGame = function() {
             '2222222'
         ];
 
-        game.create.texture('plus', plus, 3);
-        game.create.texture('minus', minus, 3);
+        this.game.create.texture('plus', plus, 3);
+        this.game.create.texture('minus', minus, 3);
 
 
-        this.ui = game.make.bitmapData(800, 32);
+        this.ui = this.game.make.bitmapData(800, 32);
 
         this.ui.addToWorld();
 
         var style = {font: "20px Calibri", fill: "#fff", tabs: 80};
 
-        this.coords = game.add.text(this.rightCol, 8, "X: 0\tY: 0", style);
+        this.coords = this.game.add.text(this.rightCol, 8, "X: 0\tY: 0", style);
 
-        this.timerLabel = game.add.text(this.rightCol + 150, 8, "Timer: 0", style);
+        this.timerLabel = this.game.add.text(this.rightCol + 150, 8, "Timer: 0", style);
 
-        this.previewSizeText = game.add.text(this.rightCol, 320, "Size: " + this.previewSize, style);
+        this.previewSizeText = this.game.add.text(this.rightCol, 320, "Size: " + this.previewSize, style);
 
-        this.previewSizeUp = game.add.sprite(this.rightCol + 180, 320, 'plus');
+        this.previewSizeUp = this.game.add.sprite(this.rightCol + 180, 320, 'plus');
         this.previewSizeUp.inputEnabled = true;
         this.previewSizeUp.input.useHandCursor = true;
         this.previewSizeUp.events.onInputDown.add(this.increasePreviewSize, this);
 
-        this.previewSizeDown = game.add.sprite(this.rightCol + 220, 320, 'minus');
+        this.previewSizeDown = this.game.add.sprite(this.rightCol + 220, 320, 'minus');
         this.previewSizeDown.inputEnabled = true;
         this.previewSizeDown.input.useHandCursor = true;
         this.previewSizeDown.events.onInputDown.add(this.decreasePreviewSize, this);
@@ -208,10 +207,11 @@ var CellsGame = function() {
 
     this.createDrawingArea = function() {
 
-        game.create.grid('drawingGrid', 16 * this.canvasZoom, 16 * this.canvasZoom, this.canvasZoom, this.canvasZoom, 'rgba(0,191,243,0.3)');
+        game.game.stage.backgroundColor = '#505050';
+        this.game.create.grid('drawingGrid', 16 * this.canvasZoom, 16 * this.canvasZoom, this.canvasZoom, this.canvasZoom, 'rgba(0,191,243,0.3)');
 
-        this.canvas = game.make.bitmapData(this.spriteWidth * this.canvasZoom, this.spriteHeight * this.canvasZoom);
-        this.canvasBG = game.make.bitmapData(this.canvas.width + 2, this.canvas.height + 2);
+        this.canvas = this.game.make.bitmapData(this.spriteWidth * this.canvasZoom, this.spriteHeight * this.canvasZoom);
+        this.canvasBG = this.game.make.bitmapData(this.canvas.width + 2, this.canvas.height + 2);
 
         this.canvasBG.rect(0, 0, this.canvasBG.width, this.canvasBG.height, '#fff');
         this.canvasBG.rect(1, 1, this.canvasBG.width - 2, this.canvasBG.height - 2, '#3f5c67');
@@ -221,7 +221,7 @@ var CellsGame = function() {
 
         this.canvasBG.addToWorld(x, y);
         this.canvasSprite = this.canvas.addToWorld(x + 1, y + 1);
-        this.canvasGrid = game.add.sprite(x + 1, y + 1, 'drawingGrid');
+        this.canvasGrid = this.game.add.sprite(x + 1, y + 1, 'drawingGrid');
         this.canvasGrid.crop(new Phaser.Rectangle(0, 0, this.spriteWidth * this.canvasZoom, this.spriteHeight * this.canvasZoom));
 
 
@@ -243,8 +243,8 @@ var CellsGame = function() {
 
     this.createPreview = function() {
 
-        this.preview = game.make.bitmapData(this.spriteWidth * this.previewSize, this.spriteHeight * this.previewSize);
-        this.previewBG = game.make.bitmapData(this.preview.width + 2, this.preview.height + 2);
+        this.preview = this.game.make.bitmapData(this.spriteWidth * this.previewSize, this.spriteHeight * this.previewSize);
+        this.previewBG = this.game.make.bitmapData(this.preview.width + 2, this.preview.height + 2);
 
         this.previewBG.rect(0, 0, this.previewBG.width, this.previewBG.height, '#fff');
         this.previewBG.rect(1, 1, this.previewBG.width - 2, this.previewBG.height - 2, '#3f5c67');
@@ -288,7 +288,7 @@ var CellsGame = function() {
 
     this.createEventListeners = function() {
 
-        keys = game.input.keyboard.addKeys(
+        keys = this.game.input.keyboard.addKeys(
             {
                 //'erase': Phaser.Keyboard.X,
                 'up': Phaser.Keyboard.UP,
@@ -304,10 +304,10 @@ var CellsGame = function() {
         keys.left.onDown.add(this.sendLeft, this);
         keys.right.onDown.add(this.sendRight, this);
 
-        game.input.mouse.capture = true;
-        game.input.onDown.add(this.onDown, this);
-        game.input.onUp.add(this.onUp, this);
-        game.input.addMoveCallback(this.paint, this);
+        this.game.input.mouse.capture = true;
+        this.game.input.onDown.add(this.onDown, this);
+        this.game.input.onUp.add(this.onUp, this);
+        this.game.input.addMoveCallback(this.paint, this);
     };
 
     this.cls = function() {
@@ -334,25 +334,24 @@ var CellsGame = function() {
     };
 
     this.sendAction = function(action) {
-        var self = this;
         var data = {
             "from_x": this.currentX,
             "from_y": this.currentY,
             "direction": action,
-            "player_name": $("#player").val()
+            "player_name": this.userService.player.color
         };
         if (!this.moveTimer) {
-            this.doSend("move", data);
+            this.doSendAction("move", data);
             this.timerCount = 1;
             this.moveTimer = setInterval(function(){
-                if (self.timerLabel){
-                    self.setTimerText(self.timerCount -= 0.1);
+                if (game.timerLabel){
+                    game.setTimerText(game.timerCount -= 0.1);
                 }
 
-                if (self.timerCount <= 0) {
-                    clearInterval(self.moveTimer);
-                    self.moveTimer = null;
-                    self.setTimerText(0);
+                if (game.timerCount <= 0) {
+                    clearInterval(game.moveTimer);
+                    game.moveTimer = null;
+                    game.setTimerText(0);
                 }
             }, 100);
         }
@@ -382,10 +381,6 @@ var CellsGame = function() {
         this.resetData();
         this.resizeCanvas();
         this.resizePreview();
-
-        this.widthText.text = "Current X: " + this.currentX;
-        this.heightText.text = "Current Y: " + this.currentY;
-
     };
 
     this.decreaseSize = function(sprite) {
@@ -408,10 +403,6 @@ var CellsGame = function() {
         this.resetData();
         this.resizeCanvas();
         this.resizePreview();
-
-        this.widthText.text = "Width: " + this.spriteWidth;
-        this.heightText.text = "Height: " + this.spriteHeight;
-
     };
 
     this.increasePreviewSize = function() {
@@ -453,124 +444,26 @@ var CellsGame = function() {
         }
     };
 
-    this.loadState = function() {
-        var self = this;
-        $.getJSON("http://" + gameConfig.serverName + ":" + gameConfig.port + "/state", function (data) {
-            Cells = data.cells;
-
-            self.updateFractions(data.fractions);
-            self.updatePlayers(data.players);
-            self.drawCells(Cells);
-        });
-    };
-
     this.drawCells = function(cells) {
-        var self = this;
         $.each(cells, function (i, cell) {
-            self.paint2({x: cell.x, y: cell.y, color: cell.color});
+            game.drawCell({x: cell.x, y: cell.y, color: cell.color});
         });
-    };
-
-    this.updateFractions = function(fractions) {
-        this.Fractions = fractions;
-    };
-
-    this.updatePlayers = function(players) {
-        this.Players = players;
-        var playersContainer = $('#players-container');
-        $.each(players, function (i, player) {
-            playersContainer.append('<li> <a href="#"  onClick="$(\'#player\').val(\'' + player.color + '\'); return false;">' + player.fraction + " | " + player.name + '</a></li>')
-        });
-    };
-
-    this.updatePlayer = function(player) {
-        this.Player = player;
-        $('#player').val(player.color)
-    };
-
-
-    this.shiftLeft = function() {
-
-        this.canvas.moveH(-this.canvasZoom);
-        this.preview.moveH(-this.previewSize);
-
-        for (var y = 0; y < this.spriteHeight; y++) {
-            var r = data[y].shift();
-            data[y].push(r);
-        }
-
-    };
-
-    this.shiftRight = function() {
-
-        this.canvas.moveH(this.canvasZoom);
-        this.preview.moveH(this.previewSize);
-
-        for (var y = 0; y < this.spriteHeight; y++) {
-            var r = data[y].pop();
-            data[y].splice(0, 0, r);
-        }
-
-    };
-
-    this.shiftUp = function() {
-
-        this.canvas.moveV(-this.canvasZoom);
-        this.preview.moveV(-this.previewSize);
-
-        var top = data.shift();
-        this.data.push(top);
-
-    };
-
-    this.shiftDown = function() {
-
-        this.canvas.moveV(this.canvasZoom);
-        this.preview.moveV(this.previewSize);
-
-        var bottom = data.pop();
-        this.data.splice(0, 0, bottom);
-
     };
 
     this.onDown = function(pointer) {
-
-        /*if (pointer.y <= 32)
-         {
-         setColor(game.math.snapToFloor(pointer.x, 32) / 32);
-         }
-         else
-         {
-         isDown = true;
-
-         if (pointer.rightButton.isDown)
-         {
-         isErase = true;
-         }
-         else
-         {
-         isErase = false;
-         }
-
-         paint(pointer);
-         }*/
-
     };
 
-
     this.onUp = function(pointer) {
-        var x = game.math.snapToFloor(pointer.x - this.canvasSprite.x, this.canvasZoom) / this.canvasZoom;
-        var y = game.math.snapToFloor(pointer.y - this.canvasSprite.y, this.canvasZoom) / this.canvasZoom;
+        var x = this.game.math.snapToFloor(pointer.x - this.canvasSprite.x, this.canvasZoom) / this.canvasZoom;
+        var y = this.game.math.snapToFloor(pointer.y - this.canvasSprite.y, this.canvasZoom) / this.canvasZoom;
 
         if (x < 0 || x >= this.spriteWidth || y < 0 || y >= this.spriteHeight) {
             return;
         }
 
-        if (this.data[y][x] == $('#player').val() /*player.color*/) {
+        if (this.data[y][x] == this.userService.player.color) {
             this.currentX = x;
             this.currentY = y;
-            this.widthText.text = "Current X: " + this.currentX;
-            this.heightText.text = "Current Y: " + this.currentY;
             this.activeCellIndication.highLight(x, y);
         }
     };
@@ -578,8 +471,8 @@ var CellsGame = function() {
     this.paint = function(pointer) {
 
         //  Get the grid loc from the pointer
-        var x = game.math.snapToFloor(pointer.x - this.canvasSprite.x, this.canvasZoom) / this.canvasZoom;
-        var y = game.math.snapToFloor(pointer.y - this.canvasSprite.y, this.canvasZoom) / this.canvasZoom;
+        var x = this.game.math.snapToFloor(pointer.x - this.canvasSprite.x, this.canvasZoom) / this.canvasZoom;
+        var y = this.game.math.snapToFloor(pointer.y - this.canvasSprite.y, this.canvasZoom) / this.canvasZoom;
 
         if (x < 0 || x >= this.spriteWidth || y < 0 || y >= this.spriteHeight) {
             return;
@@ -604,7 +497,7 @@ var CellsGame = function() {
 
     };
 
-    this.paint2 = function(pointer) {
+    this.drawCell = function(pointer) {
 
         //  Get the grid loc from the pointer
         var x = pointer.x;
@@ -630,55 +523,26 @@ var CellsGame = function() {
 
     };
 
-    this.startWebSocket = function() {
-        var self = this;
-        websocket = new WebSocket("ws:/" + gameConfig.serverName + ":" + gameConfig.port + "/");
-        websocket.onopen = function (evt) {
-            self.onOpen(evt)
-        };
-        websocket.onclose = function (evt) {
-            self.onClose(evt)
-        };
-        websocket.onmessage = function (evt) {
-            self.onMessage(evt)
-        };
-        websocket.onerror = function (evt) {
-            self.onError(evt)
-        };
-    };
-
-    this.onOpen = function(evt) {
-        console.log("CONNECTED");
-        //doSend("WebSocket rocks");
-    };
-
-    this.onClose = function(evt) {
-        console.log("DISCONNECTED");
-    };
-
-    this.onMessage = function(evt) {
-        console.log(evt);
-        var data = $.parseJSON(evt.data);
-
-        if (data.cells instanceof Array) {
-            this.drawCells(data.cells);
+    this.onMessage = function(data) {
+        if (data.cells_created) {
+            this.drawCells(data.cells_created);
+        }
+        if (data.cells_removed) {
+            this.drawCells(data.cells_removed);
         }
     };
 
-    this.onError = function(evt) {
-        console.error(evt)
+    this.doSendAction = function(actionName, actionData) {
+        this.messageDispatcherService.sendMessage({
+            action_name: actionName,
+            action_data: actionData
+        });
     };
 
-    this.doSend = function(eventName, data) {
-        websocket.send(JSON.stringify(
-            {
-                eventName: eventName,
-                data: data
-            }
-        ));
-    }
+    this.doSendRequest = function(requestName, requestData) {
+        this.messageDispatcherService.sendMessage({
+            request_name: requestName,
+            request_data: requestData
+        });
+    };
 };
-
-var gameState = new CellsGame(gameConfig);
-
-var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example', gameState);
