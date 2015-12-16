@@ -1,5 +1,7 @@
 var CellsGame = function(config) {
     var game = this;
+    game.angularScope = config.angularScope;
+    game.userService = config.userService;
 
     var CellIndication = function (color) {
         this.bitMapData = game.game.make.bitmapData(game.spriteWidth * game.canvasZoom, game.spriteHeight * game.canvasZoom);
@@ -28,6 +30,44 @@ var CellsGame = function(config) {
 
         updatePlayers : function(players) {
             this.players = players;
+        }
+    };
+
+    var controls = {
+        onDown: function(pointer) {
+        },
+
+        onUp: function(pointer) {
+            var x = this.game.math.snapToFloor(pointer.x - game.canvasSprite.x, game.canvasZoom) / game.canvasZoom;
+            var y = this.game.math.snapToFloor(pointer.y - game.canvasSprite.y, game.canvasZoom) / game.canvasZoom;
+
+            if (x < 0 || x >= game.spriteWidth || y < 0 || y >= game.spriteHeight) {
+                return;
+            }
+
+            if (game.data[y][x] == game.userService.player.color) {
+                game.currentX = x;
+                game.currentY = y;
+                game.activeCellIndication.highLight(x, y);
+            }
+        }
+    };
+
+    var network = {
+        messageDispatcherService: config.messageDispatcherService,
+
+        doSendAction: function(actionName, actionData) {
+            this.messageDispatcherService.sendMessage({
+                action_name: actionName,
+                action_data: actionData
+            });
+        },
+
+        doSendRequest: function(requestName, requestData) {
+            this.messageDispatcherService.sendMessage({
+                request_name: requestName,
+                request_data: requestData
+            });
         }
     };
 
@@ -83,8 +123,6 @@ var CellsGame = function(config) {
     this.data = 0;
 
     this.activeCellIndication = 0;
-    this.messageDispatcherService = 0;
-    this.Player = 0;
 
     this.create = function() {
         Phaser.Canvas.setUserSelect(this.game.canvas, 'none');
@@ -92,14 +130,16 @@ var CellsGame = function(config) {
         game.createUI();
         game.createDrawingArea();
         game.createPreview();
-        game.activeCellIndication = new CellIndication('#0f0');
-        game.activeCellIndication.addToWorld(10, 10);
+
         game.createEventListeners();
         game.resetData();
-        game.doSendRequest('request_state', {});
-        game.$scope.$on('messageReceived', function (e, data) {
+        network.doSendRequest('request_state', {});
+        network.messageDispatcherService.addEventListener('messageReceived', function (e, data) {
             game.onMessage(data);
         });
+
+        game.activeCellIndication = new CellIndication('#0f0');
+        game.activeCellIndication.addToWorld(10, 10);
     };
 
     this.resetData = function() {
@@ -202,7 +242,6 @@ var CellsGame = function(config) {
         this.previewSizeDown.inputEnabled = true;
         this.previewSizeDown.input.useHandCursor = true;
         this.previewSizeDown.events.onInputDown.add(this.decreasePreviewSize, this);
-
     };
 
     this.createDrawingArea = function() {
@@ -223,10 +262,6 @@ var CellsGame = function(config) {
         this.canvasSprite = this.canvas.addToWorld(x + 1, y + 1);
         this.canvasGrid = this.game.add.sprite(x + 1, y + 1, 'drawingGrid');
         this.canvasGrid.crop(new Phaser.Rectangle(0, 0, this.spriteWidth * this.canvasZoom, this.spriteHeight * this.canvasZoom));
-
-
-        //activeCellIndication.rect(0, 0, this.canvasBG.width / 2, this.canvasBG.height / 2, '#0f0');
-
     };
 
     this.resizeCanvas = function() {
@@ -290,7 +325,6 @@ var CellsGame = function(config) {
 
         keys = this.game.input.keyboard.addKeys(
             {
-                //'erase': Phaser.Keyboard.X,
                 'up': Phaser.Keyboard.UP,
                 'down': Phaser.Keyboard.DOWN,
                 'left': Phaser.Keyboard.LEFT,
@@ -298,15 +332,14 @@ var CellsGame = function(config) {
             }
         );
 
-        //keys.erase.onDown.add(cls, this);
         keys.up.onDown.add(this.sendTop, this);
         keys.down.onDown.add(this.sendBottom, this);
         keys.left.onDown.add(this.sendLeft, this);
         keys.right.onDown.add(this.sendRight, this);
 
         this.game.input.mouse.capture = true;
-        this.game.input.onDown.add(this.onDown, this);
-        this.game.input.onUp.add(this.onUp, this);
+        this.game.input.onDown.add(controls.onDown, this);
+        this.game.input.onUp.add(controls.onUp, this);
         this.game.input.addMoveCallback(this.paint, this);
     };
 
@@ -341,7 +374,7 @@ var CellsGame = function(config) {
             "player_name": this.userService.player.color
         };
         if (!this.moveTimer) {
-            this.doSendAction("move", data);
+            network.doSendAction("move", data);
             this.timerCount = 1;
             this.moveTimer = setInterval(function(){
                 if (game.timerLabel){
@@ -444,30 +477,6 @@ var CellsGame = function(config) {
         }
     };
 
-    this.drawCells = function(cells) {
-        $.each(cells, function (i, cell) {
-            game.drawCell({x: cell.x, y: cell.y, color: cell.color});
-        });
-    };
-
-    this.onDown = function(pointer) {
-    };
-
-    this.onUp = function(pointer) {
-        var x = this.game.math.snapToFloor(pointer.x - this.canvasSprite.x, this.canvasZoom) / this.canvasZoom;
-        var y = this.game.math.snapToFloor(pointer.y - this.canvasSprite.y, this.canvasZoom) / this.canvasZoom;
-
-        if (x < 0 || x >= this.spriteWidth || y < 0 || y >= this.spriteHeight) {
-            return;
-        }
-
-        if (this.data[y][x] == this.userService.player.color) {
-            this.currentX = x;
-            this.currentY = y;
-            this.activeCellIndication.highLight(x, y);
-        }
-    };
-
     this.paint = function(pointer) {
 
         //  Get the grid loc from the pointer
@@ -497,6 +506,13 @@ var CellsGame = function(config) {
 
     };
 
+    this.drawCells = function(cells) {
+        for (var k in cells){
+            var cell = cells[k];
+            game.drawCell({x: cell.x, y: cell.y, color: cell.color});
+        }
+    };
+
     this.drawCell = function(pointer) {
 
         //  Get the grid loc from the pointer
@@ -510,17 +526,25 @@ var CellsGame = function(config) {
         this.coords.text = "X: " + x + "\tY: " + y;
 
 
-        if (this.isErase) {
-            this.data[y][x] = '.';
-            this.canvas.clear(x * this.canvasZoom, y * this.canvasZoom, this.canvasZoom, this.canvasZoom, color);
-            this.preview.clear(x * this.previewSize, y * this.previewSize, this.previewSize, this.previewSize, color);
-        }
-        else {
-            this.data[y][x] = pointer.color;
-            this.canvas.rect(x * this.canvasZoom, y * this.canvasZoom, this.canvasZoom, this.canvasZoom, pointer.color);
-            this.preview.rect(x * this.previewSize, y * this.previewSize, this.previewSize, this.previewSize, pointer.color);
+        this.data[y][x] = pointer.color;
+        this.canvas.rect(x * this.canvasZoom, y * this.canvasZoom, this.canvasZoom, this.canvasZoom, pointer.color);
+        this.preview.rect(x * this.previewSize, y * this.previewSize, this.previewSize, this.previewSize, pointer.color);
+    };
+
+    this.clearCell = function(pointer) {
+
+        var x = pointer.x;
+        var y = pointer.y;
+
+        if (x < 0 || x >= this.spriteWidth || y < 0 || y >= this.spriteHeight) {
+            return;
         }
 
+        this.coords.text = "X: " + x + "\tY: " + y;
+
+        this.data[y][x] = '.';
+        this.canvas.clear(x * this.canvasZoom, y * this.canvasZoom, this.canvasZoom, this.canvasZoom, color);
+        this.preview.clear(x * this.previewSize, y * this.previewSize, this.previewSize, this.previewSize, color);
     };
 
     this.onMessage = function(data) {
@@ -530,19 +554,5 @@ var CellsGame = function(config) {
         if (data.cells_removed) {
             this.drawCells(data.cells_removed);
         }
-    };
-
-    this.doSendAction = function(actionName, actionData) {
-        this.messageDispatcherService.sendMessage({
-            action_name: actionName,
-            action_data: actionData
-        });
-    };
-
-    this.doSendRequest = function(requestName, requestData) {
-        this.messageDispatcherService.sendMessage({
-            request_name: requestName,
-            request_data: requestData
-        });
     };
 };

@@ -38,22 +38,40 @@
 
             var messageDispatcherService = {
                 webSocket: websocket,
+                eventListeners: [],
 
                 sendMessage: function(message){
                     if(websocket.readyState === 1){
                         this.webSocket.send(JSON.stringify(
                             message
                         ));
+                        this.dispatchEvent('messageSent', message);
                         $rootScope.$broadcast('messageSent', message);
                     } else {
                         messageQueue.push(message);
                         console.log('Message queued.');
                     }
-
                 },
 
                 messageReceived: function(message){
+                    this.dispatchEvent('messageReceived', message);
                     $rootScope.$broadcast('messageReceived', message);
+                },
+
+                addEventListener: function(eventName, callback){
+                    this.eventListeners.push({
+                        eventName: eventName,
+                        callback: callback
+                    });
+                },
+
+                dispatchEvent: function(eventName, data){
+                    for( var k in this.eventListeners ){
+                        var listener = this.eventListeners[k];
+                        if(listener.eventName === eventName){
+                            listener.callback(eventName, data);
+                        }
+                    }
                 }
             };
 
@@ -77,10 +95,10 @@
                 }
             });
 
+            gameConfig.messageDispatcherService = MessageDispatcherService;
+            gameConfig.userService = UserService;
+            gameConfig.angularScope = $scope;
             var game = new CellsGame(gameConfig);
-            game.messageDispatcherService = MessageDispatcherService;
-            game.userService = UserService;
-            game.$scope = $scope;
             new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example', game);
         }]);
 })();
